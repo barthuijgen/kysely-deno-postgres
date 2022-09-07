@@ -1,1 +1,2 @@
-export * from "https://cdn.jsdelivr.net/npm/kysely@0.16.5/dist/esm/index-nodeless.js";
+export * from "https://cdn.jsdelivr.net/npm/kysely/dist/esm/index.js";
+export * from "https://cdn.jsdelivr.net/npm/kysely/dist/esm/util/stack-trace-utils.js";

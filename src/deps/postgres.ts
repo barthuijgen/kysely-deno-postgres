@@ -1,1 +1,1 @@
-export * from "https://deno.land/x/postgres@v0.14.3/mod.ts";
+export * from "https://deno.land/x/postgres@v0.16.1/mod.ts";

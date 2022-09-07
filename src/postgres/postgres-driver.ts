@@ -1,12 +1,13 @@
 import { Pool } from "../deps/postgres.ts";
 import type { PoolClient, ClientOptions } from "../deps/postgres.ts";
-import { CompiledQuery } from "../deps/kysely.ts";
+import { CompiledQuery, PostgresCursorConstructor } from "../deps/kysely.ts";
 import type {
   DatabaseConnection,
   QueryResult,
   Driver,
   TransactionSettings,
 } from "../deps/kysely.ts";
+import { extendStackTrace } from "../deps/kysely.ts";
 
 const PRIVATE_RELEASE_METHOD = Symbol();
 
@@ -30,7 +31,7 @@ export class PostgresDriver implements Driver {
     let connection = this.#connections.get(client);
 
     if (!connection) {
-      connection = new PostgresConnection(client);
+      connection = new PostgresConnection(client, { cursor: null });
       this.#connections.set(client, connection);
 
       // The driver must take care of calling `onCreateConnection` when a new
@@ -82,29 +83,51 @@ export class PostgresDriver implements Driver {
   }
 }
 
+interface PostgresConnectionOptions {
+  cursor: PostgresCursorConstructor | null;
+}
+
 class PostgresConnection implements DatabaseConnection {
   #client: PoolClient;
+  #options: PostgresConnectionOptions;
 
-  constructor(client: PoolClient) {
+  constructor(client: PoolClient, options: PostgresConnectionOptions) {
     this.#client = client;
+    this.#options = options;
   }
 
   async executeQuery<O>(compiledQuery: CompiledQuery): Promise<QueryResult<O>> {
-    const result = await this.#client.queryObject<O>(
-      compiledQuery.sql,
-      ...compiledQuery.parameters
-    );
+    try {
+      const result = await this.#client.queryObject<O>(compiledQuery.sql, [
+        ...compiledQuery.parameters,
+      ]);
 
-    if (result.command === "UPDATE" || result.command === "DELETE") {
+      if (result.command === "UPDATE" || result.command === "DELETE") {
+        return {
+          numUpdatedOrDeletedRows: BigInt(result.rowCount!),
+          rows: result.rows ?? [],
+        };
+      }
+
       return {
-        numUpdatedOrDeletedRows: BigInt(result.rowCount!),
         rows: result.rows ?? [],
       };
+    } catch (err) {
+      throw extendStackTrace(err, new Error());
+    }
+  }
+
+  async *streamQuery<O>(
+    _compiledQuery: CompiledQuery,
+    _chunkSize: number
+  ): AsyncIterableIterator<QueryResult<O>> {
+    if (!this.#options.cursor) {
+      throw new Error(
+        "'cursor' is not present in your postgres dialect config. It's required to make streaming work in postgres."
+      );
     }
 
-    return {
-      rows: result.rows ?? [],
-    };
+    // Deno postgress does not support streaming
   }
 
   [PRIVATE_RELEASE_METHOD](): void {
