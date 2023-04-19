@@ -1,2 +1,2 @@
-export * from "https://cdn.jsdelivr.net/npm/kysely/dist/esm/index.js";
-export * from "https://cdn.jsdelivr.net/npm/kysely/dist/esm/util/stack-trace-utils.js";
+export * from "https://esm.sh/kysely@0.23.4";
+export * from "https://esm.sh/kysely@0.23.4/dist/esm/util/stack-trace-utils.js";

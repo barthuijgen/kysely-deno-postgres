@@ -1,5 +1,6 @@
 import { Pool } from "../deps/postgres.ts";
-import type { PoolClient, ClientOptions } from "../deps/postgres.ts";
+import type { PoolClient } from "../deps/postgres.ts";
+import { PostgresDialectConfig } from "./postgres-dialect-config.ts";
 import { CompiledQuery, PostgresCursorConstructor } from "../deps/kysely.ts";
 import type {
   DatabaseConnection,
@@ -12,18 +13,19 @@ import { extendStackTrace } from "../deps/kysely.ts";
 const PRIVATE_RELEASE_METHOD = Symbol();
 
 export class PostgresDriver implements Driver {
-  readonly #config: ClientOptions;
+  readonly #config: PostgresDialectConfig;
   readonly #connections = new WeakMap<PoolClient, DatabaseConnection>();
   #pool: Pool | null = null;
 
-  constructor(config: ClientOptions) {
+  constructor(config: PostgresDialectConfig) {
     this.#config = config;
   }
 
   async init(): Promise<void> {
-    // TODO: size is required unlike the node `pg` module.
-    // Need to figure out what is a good value to use here
-    this.#pool = new Pool(this.#config, 1);
+    this.#pool =
+      typeof this.#config.pool === "function"
+        ? await this.#config.pool()
+        : this.#config.pool;
   }
 
   async acquireConnection(): Promise<DatabaseConnection> {
