@@ -1,3 +1,5 @@
-import type { ClientOptions } from "../deps/postgres.ts";
+import type { Pool } from "../deps/postgres.ts";
 
-export type PostgresDialectConfig = ClientOptions;
+export interface PostgresDialectConfig {
+  pool: Pool | (() => Promise<Pool>);
+}
